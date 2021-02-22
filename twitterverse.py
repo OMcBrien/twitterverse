@@ -1,6 +1,8 @@
 import os
 import shutil
 import tweepy
+import json
+import pandas as pd
 
 def readSettings():
 
@@ -12,22 +14,17 @@ def readSettings():
     api_key = all_settings['api_key']
     api_secret_key = all_settings['api_secret_key']
     bearer_token = all_settings['bearer_token']
-    user_id = all_settings['user_id']
-    nitems = all_settings['nitems']
-    trim_user = all_settings['trim_user']
-    exclude_replies = all_settings['exclude_replies']
-    include_rts = all_settings['include_rts']
+    fetch_properties = all_settings['fetch_properties']
     save_results = all_settings['save_results']
+
+    user_id = fetch_properties['user_id']
 
     full_parameters = (api_key,
                         api_secret_key,
                         bearer_token,
-                        user_id,
-                        nitems,
-                        trim_user,
-                        exclude_replies,
-                        include_rts,
-                        save_results)
+                        fetch_properties,
+                        save_results,
+                        user_id)
 
     return full_parameters
 
@@ -48,9 +45,9 @@ def makeResultsDirectories(sub_dir):
 
     return None
 
-def fetchRecentTweets(api, user_id, nitems = 100, trim_user = False, exclude_replies = False, include_rts = True):
+def fetchRecentTweets(api, fetch_properties):
 
-    tweets = tweepy.Cursor(api.user_timeline, id = user_id, trim_user = trim_user, exclude_replies = exclude_replies, include_rts = include_rts, tweet_mode = 'extended').items(nitems)
+    tweets = tweepy.Cursor(api.user_timeline, id = fetch_properties['user_id'], trim_user = fetch_properties['trim_user'], exclude_replies = fetch_properties['exclude_replies'], include_rts = fetch_properties['include_rts'], tweet_mode = 'extended').items(fetch_properties['nitems'])
 
     return tweets
 
@@ -64,8 +61,11 @@ def saveTweets(tweets, user_id, save_over = False):
     makeResultsDirectories(user_id)
 
     for tweet in tweets:
-        with open(os.path.join(out_dir, tweet.id_str + '.tweet'), 'w') as filewrite:
-            filewrite.write(tweet.full_text)
+
+        tweet = json.loads( json.dumps(tweet._json) )
+
+        with open(os.path.join(out_dir, tweet['id_str'] + '.tweet'), 'w') as filewrite:
+            json.dump(tweet, filewrite, indent = 4)
 
     return None
 
@@ -76,16 +76,13 @@ def main():
     (api_key,
     api_secret_key,
     bearer_token,
-    user_id,
-    nitems,
-    trim_user,
-    exclude_replies,
-    include_rts,
-    save_results) = readSettings()
+    fetch_properties,
+    save_results,
+    user_id) = readSettings()
 
     auth, api = establishAuthAPI(api_key, api_secret_key)
 
-    tweets = fetchRecentTweets(api, user_id, nitems, trim_user, exclude_replies, include_rts)
+    tweets = fetchRecentTweets(api, fetch_properties)
 
     if save_results:
         saveTweets(tweets, user_id, save_over = True)
