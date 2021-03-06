@@ -35,15 +35,25 @@ def establishAuthAPI(api_key, api_secret_key):
 
     return auth, api
 
+def makeMainOutputDirectory():
+
+    if not os.path.exists('output'):
+        os.mkdir('output')
+
 def makeResultsDirectories(sub_dir):
 
-    if not os.path.exists('tweets'):
-        os.mkdir('tweets')
-        os.mkdir(os.path.join('tweets', sub_dir))
-    elif os.path.exists('tweets'):
-        os.mkdir(os.path.join('tweets', sub_dir))
+    if not os.path.exists('output'):
+        makeMainOutputDirectory()
 
-    return None
+    user_output_directory = os.path.join('output', sub_dir)
+
+    if not os.path.exists(user_output_directory):
+        os.mkdir(user_output_directory)
+        os.mkdir(os.path.join(user_output_directory, 'tweets'))
+    elif os.path.exists(user_output_directory):
+        shutil.rmtree(user_output_directory)
+        os.mkdir(user_output_directory)
+        os.mkdir(os.path.join(user_output_directory, 'tweets'))
 
 def fetchRecentTweets(api, fetch_properties):
 
@@ -53,21 +63,14 @@ def fetchRecentTweets(api, fetch_properties):
 
 def saveTweets(tweets, user_id, save_over = False):
 
-    out_dir = os.path.join('tweets', user_id)
-
-    if save_over and os.path.exists(out_dir):
-            shutil.rmtree(out_dir)
-
-    makeResultsDirectories(user_id)
+    tweet_out_dir = os.path.join('output/' + user_id, 'tweets')
 
     for tweet in tweets:
 
         tweet = json.loads( json.dumps(tweet._json) )
 
-        with open(os.path.join(out_dir, tweet['id_str'] + '.tweet'), 'w') as filewrite:
+        with open(os.path.join(tweet_out_dir, tweet['id_str'] + '.tweet'), 'w') as filewrite:
             json.dump(tweet, filewrite, indent = 4)
-
-    return None
 
 # ------------------------------------------------------------------------------
 
@@ -85,6 +88,8 @@ def main():
     tweets = fetchRecentTweets(api, fetch_properties)
 
     if save_results:
+        makeMainOutputDirectory()
+        makeResultsDirectories(user_id)
         saveTweets(tweets, user_id, save_over = True)
 
 
