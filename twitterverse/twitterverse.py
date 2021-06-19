@@ -16,10 +16,12 @@ def readSettings():
         all_settings = yaml.safe_load(stream)
 
     connection_settings = all_settings['Connection Settings']
+    program_settings = all_settings['Program Settings']
     twitter_settings = all_settings['Twitter Settings']
     output_settings = all_settings['Output Settings']
 
     full_parameters = (connection_settings,
+                        program_settings,
                         twitter_settings,
                         output_settings)
 
@@ -32,18 +34,10 @@ def establishAuthAPI(connection_settings):
 
     return auth, api
 
-def makeResultsDirectories(sub_dir):
+def makeResultsDirectory():
 
-    if not os.path.exists('output'):
-        os.mkdir('output')
-
-    user_output_directory = os.path.join('output', sub_dir)
-
-    if not os.path.exists(user_output_directory):
-        os.mkdir(user_output_directory)
-    elif os.path.exists(user_output_directory):
-        shutil.rmtree(user_output_directory)
-        os.mkdir(user_output_directory)
+    if not os.path.exists('tweets'):
+        os.mkdir('tweets')
 
 def fetchRecentTweets(api, twitter_settings):
 
@@ -56,35 +50,42 @@ def fetchRecentTweets(api, twitter_settings):
 
     return tweets
 
-def saveTweets(the_tweets, user_id, save_over = False):
+def giveTweetsAsDictionary(the_tweets, user_id, save_tweets = False):
 
-    tweet_out_dir = os.path.join('output/' + user_id)
+    tweets_dict = {'tweet_{}'.format(str(index)): the_tweet._json for index, the_tweet in enumerate(the_tweets)}
 
-    for the_tweet in the_tweets:
+    if save_tweets:
 
-        the_tweet = json.loads( json.dumps(the_tweet._json) )
+        with open('tweets/' + user_id + '.json', 'w') as f:
+            json.dump(tweets_dict, f, indent = 4)
 
-        with open(os.path.join(tweet_out_dir, the_tweet['id_str'] + '.tweet'), 'w') as filewrite:
-            json.dump(the_tweet, filewrite, indent = 4)
+    return tweets_dict
 
 # ------------------------------------------------------------------------------
 
 def main():
 
     (connection_settings,
-     twitter_settings,
-     output_settings) = readSettings()
+    program_settings,
+    twitter_settings,
+    output_settings) = readSettings()
 
-    auth, api = establishAuthAPI(connection_settings)
+    user_id = twitter_settings['user id']
 
-    tweets = fetchRecentTweets(api, twitter_settings)
+    if program_settings['fetch tweets']:
 
-    if output_settings['save results']:
-        makeResultsDirectories(twitter_settings['user id'])
-        saveTweets(tweets, twitter_settings['user id'], save_over = True)
+        auth, api = establishAuthAPI(connection_settings)
+        tweets = fetchRecentTweets(api, twitter_settings)
 
+        makeResultsDirectory()
+        tweets = giveTweetsAsDictionary(tweets, user_id, save_tweets = True)
 
+    else:
 
+        with open('tweets/' + user_id + '.json', 'r') as f:
+            tweets = json.load(f)
+
+    
 
 if __name__ == '__main__':
     main()
